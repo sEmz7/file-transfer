@@ -1,0 +1,27 @@
+.DS_Store
+.env
+.env.*
+secrets.env
+*.pem
+*.key
+
+# Vivado generated files
+**/.Xil/
+**/*.cache/
+**/*.runs/
+**/*.sim/
+**/*.hw/
+**/*.gen/
+**/*.ip_user_files/
+**/.jobs/
+**/source_files/synth_1/
+**/.build/
+**/.vivado/
+**/__pycache__/
+*.pyc
+*.jou
+*.log
+*.str
+*.pb
+*.wdb
+*.wcfg
