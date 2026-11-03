@@ -1,17 +1,19 @@
 # Run in Vivado Tcl Console. Paths are resolved relative to this script.
-# Optional before sourcing: set lab6_test selftest|lab07|lab11|individual|memory|lsu|csr|irq|board
+# Default: the unmodified upstream lab 11 testbench.
+# Optional: set lab6_test lab07|lab09|lab11|selftest|individual|memory|lsu|csr|irq|board
 set lab6_root [file normalize [file join [file dirname [info script]] ..]]
 if {![info exists lab6_test]} {
     if {[info exists argv] && [llength $argv] > 0} {
         set lab6_test [lindex $argv 0]
     } else {
-        set lab6_test selftest
+        set lab6_test lab11
     }
 }
 set lab6_tests [dict create \
     selftest   {tb_lab6 tests/tb_lab6.sv} \
     individual {tb_individual tests/tb_individual.sv} \
     lab07      {lab_07_tb_processor_system tests/upstream/lab_07.tb_processor_system.sv} \
+    lab09      {lab_07_tb_processor_system tests/upstream/lab_07.tb_processor_system.sv} \
     lab11      {lab_11_tb_processor_system tests/upstream/lab_11.tb_processor_system.sv} \
     memory     {lab_06_tb_data_mem tests/upstream/lab_06.tb_data_mem.sv} \
     lsu        {lab_08_tb_lsu tests/upstream/lab_08.tb_lsu.sv} \
@@ -43,7 +45,7 @@ foreach relative $lab6_lines {
 set_property top processor_system [get_filesets sources_1]
 
 set lab6_program lab11
-if {$lab6_test eq "lab07"} {set lab6_program lab07}
+if {$lab6_test in {lab07 lab09}} {set lab6_program lab07}
 if {$lab6_test eq "individual" || $lab6_test eq "board"} {set lab6_program individual}
 set lab6_memdir [file join $lab6_build images]
 file mkdir $lab6_memdir
@@ -60,32 +62,9 @@ if {$lab6_test eq "board"} {
 } else {
     lassign [dict get $lab6_tests $lab6_test] lab6_top lab6_relative_bench
     set lab6_bench [file join $lab6_root $lab6_relative_bench]
-    # Adapt only the pre-interrupt checkpoint and the interactive time-zero
-    # pause. The upstream sources remain unchanged in tests/upstream.
-    if {$lab6_test in {lab07 csr irq}} {
-        set lab6_handle [open $lab6_bench r]
-        set lab6_text [read $lab6_handle]
-        close $lab6_handle
-        if {$lab6_test eq "lab07"} {
-            set lab6_text [string map [list \
-                {module lab_07_tb_processor_system();} \
-                "module lab_07_tb_processor_system();\n  defparam DUT.ENABLE_TRAPS = 1'b0;"] $lab6_text]
-        } elseif {$lab6_test eq "irq"} {
-            # Avoid driving interrupt inputs in the DUT's sampling region.
-            regsub -all {@\(posedge clk_i\);?} $lab6_text \
-                {@(posedge clk_i); #1;} lab6_text
-        } else {
-            set lab6_start [string first {  $stop();} $lab6_text]
-            if {$lab6_start >= 0} {
-                set lab6_text [string replace $lab6_text $lab6_start \
-                    [expr {$lab6_start + [string length {  $stop();}] - 1}] \
-                    {// Initial interactive pause omitted for batch testing.}]
-            }
-        }
-        set lab6_bench [file join $lab6_build ${lab6_test}_tb.sv]
-        set lab6_handle [open $lab6_bench w]
-        puts -nonewline $lab6_handle $lab6_text
-        close $lab6_handle
+    # Configure the design checkpoint, leaving the upstream testbench intact.
+    if {$lab6_test in {lab07 lab09}} {
+        set_property verilog_define {APS_DATAPATH_CHECKPOINT} [get_filesets sim_1]
     }
     add_files -norecurse -fileset sim_1 $lab6_bench
     set_property file_type SystemVerilog [get_files $lab6_bench]

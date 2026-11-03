@@ -19,6 +19,7 @@ TESTS = {
     "csr": ("lab_10_tb_csr", ROOT / "tests/upstream/lab_10.tb_csr.sv"),
     "irq": ("lab_10_tb_irq", ROOT / "tests/upstream/lab_10.tb_irq.sv"),
     "lab07": ("lab_07_tb_processor_system", ROOT / "tests/upstream/lab_07.tb_processor_system.sv"),
+    "lab09": ("lab_07_tb_processor_system", ROOT / "tests/upstream/lab_07.tb_processor_system.sv"),
     "lab11": ("lab_11_tb_processor_system", ROOT / "tests/upstream/lab_11.tb_processor_system.sv"),
 }
 
@@ -29,6 +30,8 @@ def prepare_images():
         raise RuntimeError("Assembler does not reproduce the official lab 11 image")
     for folder in (ROOT / "programs", ROOT / "tests/programs"):
         for source in sorted(folder.glob("*.S")):
+            if source.stem == "lab11":
+                continue  # Preserve the original upstream image byte-for-byte.
             write_image(source, source.with_suffix(".mem"))
 
 
@@ -71,9 +74,6 @@ def bench_for_verilator(name, path):
             "case ($urandom_range(0, 4)) 0: core_size_i=LDST_B; 1: core_size_i=LDST_H; 2: core_size_i=LDST_W; 3: core_size_i=LDST_BU; 4: core_size_i=LDST_HU; endcase")
         if "std::randomize" in text:
             raise RuntimeError("LSU testbench adaptation did not match")
-    elif name == "lab07":
-        text = text.replace("module lab_07_tb_processor_system();",
-                            "module lab_07_tb_processor_system();\n  defparam DUT.ENABLE_TRAPS = 1'b0;")
     else:
         return path
     adapted = BUILD / (name + "_verilator.sv")
@@ -103,6 +103,8 @@ def main():
         command = [verilator, "--binary", "--timing", "--assert", "--trace", "-j", "2",
                    "-Wno-fatal", "-Wno-TIMESCALEMOD", "--top-module", top,
                    "--Mdir", str(model), *sources, str(path)]
+        if name in ("lab07", "lab09"):
+            command.insert(1, "-DAPS_DATAPATH_CHECKPOINT")
         with log.open("w") as output:
             result = subprocess.run(command, cwd=ROOT, stdout=output, stderr=subprocess.STDOUT)
             if result.returncode == 0:
@@ -111,7 +113,7 @@ def main():
                 for folder in (ROOT / "programs", ROOT / "tests/programs"):
                     for image in folder.glob("*.mem"):
                         shutil.copy2(image, cwd / image.name)
-                selected = name if name in ("lab07", "lab11", "individual") else "lab11"
+                selected = "lab07" if name in ("lab07", "lab09") else ("individual" if name == "individual" else "lab11")
                 shutil.copy2(ROOT / "programs" / (selected + ".mem"), cwd / "program.mem")
                 command = [str(model / ("V" + top))]
                 if args.waves and name == "integration":

@@ -2,7 +2,11 @@
 
 // PIN/PM lab 6: datapath, load/store unit and interrupt integration.
 module processor_system #(
+`ifdef APS_DATAPATH_CHECKPOINT
+  parameter bit ENABLE_TRAPS = 1'b0
+`else
   parameter bit ENABLE_TRAPS = 1'b1
+`endif
 ) (
   input logic clk_i,
   input logic rst_i
