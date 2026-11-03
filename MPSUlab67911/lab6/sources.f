@@ -1,0 +1,17 @@
+source_files/alu_opcodes_pkg.sv
+source_files/csr_pkg.sv
+source_files/decoder_pkg.sv
+source_files/memory_pkg.sv
+source_files/full_adder.sv
+source_files/fulladder4.sv
+source_files/fulladder32.sv
+source_files/alu.sv
+source_files/decoder.sv
+source_files/register_file.sv
+source_files/instr_mem.sv
+source_files/lab_06.data_mem.sv
+source_files/lab_08.lsu.sv
+source_files/lab_10.csr.sv
+source_files/lab_10.irq.sv
+source_files/processor_core.sv
+source_files/processor_system.sv
