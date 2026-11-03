@@ -3,7 +3,14 @@
 // Self-checking tests supplement the upstream waveform demonstrations.
 module tb_lab6;
   logic clk = 0;
-  always #5 clk = ~clk;
+  logic test_passed = 0;
+  // XSim can continue after $finish when Run All is pressed again.
+  // Leave no periodic events after a successful test.
+  initial begin
+    while (!test_passed) begin
+      #5 clk = ~clk;
+    end
+  end
   logic rst = 1, checkpoint_rst = 1;
   processor_system DUT (.clk_i(clk), .rst_i(rst));
   processor_system #(.ENABLE_TRAPS(1'b0)) CHECKPOINT (
@@ -20,7 +27,6 @@ module tb_lab6;
   );
 
   int checks = 0;
-  logic test_passed = 0;
   int exceptions = 0, interrupts = 0;
   always @(posedge clk) begin
     if (rst) begin
@@ -246,6 +252,7 @@ module tb_lab6;
 
   initial begin
     #200000;
-    $fatal(1, "tb_lab6 watchdog expired");
+    if (!test_passed)
+      $fatal(1, "tb_lab6 watchdog expired");
   end
 endmodule

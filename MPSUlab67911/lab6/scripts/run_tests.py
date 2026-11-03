@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 BUILD = ROOT / ".build"
 TESTS = {
     "integration": ("tb_lab6", ROOT / "tests/tb_lab6.sv"),
+    "completed": ("tb_lab6", ROOT / "tests/tb_lab6.sv"),
     "individual": ("tb_individual", ROOT / "tests/tb_individual.sv"),
     "memory": ("lab_06_tb_data_mem", ROOT / "tests/upstream/lab_06.tb_data_mem.sv"),
     "lsu": ("lab_08_tb_lsu", ROOT / "tests/upstream/lab_08.tb_lsu.sv"),
@@ -36,7 +37,17 @@ def bench_for_verilator(name, path):
     # selection is replaced with equivalent legal choices to avoid an SMT
     # solver dependency when running the upstream LSU test in Verilator.
     text = path.read_text()
-    if name == "memory":
+    if name == "completed":
+        # Model XSim's Run All after $finish by continuing beyond the watchdog
+        # deadline instead of stopping at the first successful completion.
+        if text.count("    $finish;") != 1:
+            raise RuntimeError("Completion testbench adaptation did not match")
+        text = text.replace("    $finish;", '''    #210000;
+    if (clk !== 1'b0)
+      $fatal(1, "Clock must stop after successful completion");
+    $display("PASS completed simulation remains stable");
+    $finish;''', 1)
+    elif name == "memory":
         # Verilator is two-state: out-of-range reads cannot be tested with X.
         # Check the same array dimensions with SystemVerilog introspection.
         text = text.replace("    DUT.ram[DATA_MEM_SIZE_WORDS] = '0;", "")
@@ -109,7 +120,9 @@ def main():
         text = log.read_text()
         counts = [int(n) for n in re.findall(r"Number of errors:\s*(\d+)", text)]
         failed = result.returncode != 0 or any(counts) or bool(re.search(r"%Error|\$fatal|Assertion failed", text))
-        if name == "integration" and "PASS tb_lab6:" not in text:
+        if name in ("integration", "completed") and "PASS tb_lab6:" not in text:
+            failed = True
+        if name == "completed" and "PASS completed simulation remains stable" not in text:
             failed = True
         if failed:
             print("FAIL " + name + "\n" + "\n".join(text.splitlines()[-60:]), flush=True)
